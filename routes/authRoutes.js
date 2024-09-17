@@ -3,6 +3,7 @@ const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 const bcrypt = require("bcryptjs");
 const User = require("../models/User");
+const verifyToken = require("../middleware/verifyToken");
 require("dotenv").config();
 
 const router = express.Router();
@@ -131,6 +132,25 @@ router.post("/reset-password/:token", async (req, res) => {
     await user.save();
 
     res.status(200).json({ message: "Password reset successful" });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error });
+  }
+});
+
+router.get("/user-data", verifyToken, async (req, res) => {
+  try {
+    // Find the user by userId from the token
+    const user = await User.findById(req.userId).select("-password"); // Exclude the password field
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Return the user data
+    res.status(200).json({
+      userId: user._id,
+      name: user.name,
+      email: user.email,
+    });
   } catch (error) {
     res.status(500).json({ message: "Server error", error });
   }
