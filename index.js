@@ -1,5 +1,7 @@
 const express = require("express");
 const mongoose = require("mongoose");
+const WebSocket = require("ws");
+
 require("dotenv").config();
 
 const bodyParser = require("body-parser");
@@ -39,3 +41,20 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
+const wss = new WebSocket.Server({ port: 3000 });
+
+wss.on("connection", (ws) => {
+  console.log("New client connected");
+  ws.send("Hello from the server!");
+
+  ws.on("message", (message) => {
+    console.log(`Received: ${message}`);
+  });
+
+  ws.on("close", () => {
+    console.log("Client disconnected");
+  });
+});
+
+console.log("WebSocket server is running on ws://localhost:3000");
