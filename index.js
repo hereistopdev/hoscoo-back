@@ -42,16 +42,46 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
 
+// WebSocket server
 const wss = new WebSocket.Server({ port: 3000 });
 
+let sharedText = ""; // Shared text state to be broadcast to all clients
+
+// Broadcast function to send the updated text to all connected clients
+const broadcastTextUpdate = (data) => {
+  wss.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify({ text: data })); // Send as a JSON string
+    }
+  });
+};
+
+// Handle WebSocket connections
 wss.on("connection", (ws) => {
   console.log("New client connected");
-  ws.send("Hello from the server!");
 
+  // Send the current shared text to the newly connected client
+  ws.send(JSON.stringify({ text: sharedText }));
+
+  // Listen for text updates from the client
   ws.on("message", (message) => {
-    console.log(`Received: ${message}`);
+    try {
+      const parsedMessage = JSON.parse(message); // Ensure it's parsed correctly
+      if (parsedMessage.text) {
+        console.log(`Received text: ${parsedMessage.text}`);
+
+        // Update the shared text
+        sharedText = parsedMessage.text;
+
+        // Broadcast the updated text to all connected clients
+        broadcastTextUpdate(sharedText);
+      }
+    } catch (error) {
+      console.error("Error parsing message:", error);
+    }
   });
 
+  // Handle client disconnection
   ws.on("close", () => {
     console.log("Client disconnected");
   });
