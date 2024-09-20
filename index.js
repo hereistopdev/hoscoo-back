@@ -15,14 +15,10 @@ app.use(bodyParser.json());
 app.use(cors());
 
 app.use("/auth", authRoutes);
-
 app.use("/accounts", accountsRoutes);
 
-// Connect to MongoDB
-mongoose.connect(process.env.MONGO_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-});
+// Connect to MongoDB without deprecated options
+mongoose.connect(process.env.MONGO_URI);
 
 // Connection events
 mongoose.connection.on("connected", () => {
@@ -37,54 +33,47 @@ mongoose.connection.on("disconnected", () => {
   console.log("MongoDB disconnected");
 });
 
+// Use the same port for both HTTP and WebSocket
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
 
-// WebSocket server
-const wss = new WebSocket.Server({ port: 3000 });
+// WebSocket server setup
+const wss = new WebSocket.Server({ server });
 
 let sharedText = ""; // Shared text state to be broadcast to all clients
 
-// Broadcast function to send the updated text to all connected clients
 const broadcastTextUpdate = (data) => {
   wss.clients.forEach((client) => {
     if (client.readyState === WebSocket.OPEN) {
-      client.send(JSON.stringify({ text: data })); // Send as a JSON string
+      client.send(JSON.stringify({ text: data }));
     }
   });
 };
 
-// Handle WebSocket connections
 wss.on("connection", (ws) => {
-  console.log("New client connected");
+  console.log("New WebSocket client connected");
 
-  // Send the current shared text to the newly connected client
+  // Send current shared text to the newly connected client
   ws.send(JSON.stringify({ text: sharedText }));
 
-  // Listen for text updates from the client
+  // Listen for incoming messages from the client
   ws.on("message", (message) => {
     try {
-      const parsedMessage = JSON.parse(message); // Ensure it's parsed correctly
+      const parsedMessage = JSON.parse(message);
       if (parsedMessage.text) {
-        console.log(`Received text: ${parsedMessage.text}`);
-
-        // Update the shared text
         sharedText = parsedMessage.text;
-
-        // Broadcast the updated text to all connected clients
         broadcastTextUpdate(sharedText);
       }
     } catch (error) {
-      console.error("Error parsing message:", error);
+      console.error("Error parsing WebSocket message:", error);
     }
   });
 
-  // Handle client disconnection
   ws.on("close", () => {
-    console.log("Client disconnected");
+    console.log("WebSocket client disconnected");
   });
 });
 
-console.log("WebSocket server is running on ws://localhost:3000");
+console.log("WebSocket server running on the same port as HTTP");
