@@ -58,13 +58,21 @@ wss.on("connection", (ws) => {
   // Send current shared text to the newly connected client
   ws.send(JSON.stringify({ text: sharedText }));
 
-  // Listen for incoming messages from the client
   ws.on("message", (message) => {
     try {
       const parsedMessage = JSON.parse(message);
+
       if (parsedMessage.text) {
         sharedText = parsedMessage.text;
         broadcastTextUpdate(sharedText);
+      }
+
+      if (parsedMessage.typing) {
+        wss.clients.forEach((client) => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({ typing: parsedMessage.typing, user: parsedMessage.user }));
+          }
+        });
       }
     } catch (error) {
       console.error("Error parsing WebSocket message:", error);
